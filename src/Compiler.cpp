@@ -116,25 +116,28 @@ std::string Compiler::assignmentOperator(node_t *node) {
     /* std::cout << "assignmentOperator()" << std::endl; */
     std::string result = "";
     auto var = *findVariable(node->children.at(0)->token.value);
-    if (node->children.at(1)->type == NUM_NODE) {
-        result += "\tmovl $" + node->children.at(1)->token.value + ", -" + std::to_string(var.stack_offset) + "(%rbp)\n";
+    auto right = node->children.at(1);
+    if (right->type == NUM_NODE) {
+        result += "\tmovl $" + right->token.value + ", -" + std::to_string(var.stack_offset) + "(%rbp)\n";
+    } else if (right->type == VAR_NODE) {
+        auto left_var = *findVariable(right->token.value);
+        result += "\tmovl -" + std::to_string(left_var.stack_offset) + "(%rbp), %eax\n";
+        result += "\tmovl %eax, -" + std::to_string(var.stack_offset) + "(%rbp)\n";
         return result;
-    }
-    if (node->children.at(1)->type == VAR_NODE) {
-        auto left_var = *findVariable(node->children.at(1)->token.value);
-        result += "\tmovl -" + std::to_string(left_var.stack_offset) + "(%rbp), -" + std::to_string(var.stack_offset) + "(%rbp)\n";
+    } else if (right->type == UN_OP_NODE) {
+        result += unOpAsm(right, node->token);
         return result;
-    }
-    if (node->children.at(1)->type == UN_OP_NODE) {
-        result += unOpAsm(node->children.at(1), node->token);
-        return result;
-    }
-    if (node->children.at(1)->type == BIN_OP_NODE) {
-        result += binOpAsm(node->children.at(1)->children.at(0), node->children.at(1)->children.at(1), node->children.at(1)->token);
+    } else if (right->type == BIN_OP_NODE) {
+        result += binOpAsm(right->children.at(0), right->children.at(1), right->token);
         result += "\tmovl -" + std::to_string(variables.back().stack_offset) + "(%rbp), %eax\n";
         result += "\tmovl %eax, -" + std::to_string(var.stack_offset) + "(%rbp)\n";
         variables.pop_back();
         return result;
+    } else if (right->type == ARRAY_INDEX_NODE) {
+        result += arrayIndex(right);
+        result += "\tmovl -" + std::to_string(variables.back().stack_offset) + "(%rbp), %eax\n";
+        result += "\tmovl %eax, -" + std::to_string(var.stack_offset) + "(%rbp)\n";
+        variables.pop_back();
     }
     return result;
 }
@@ -235,7 +238,7 @@ std::string Compiler::binOpAsm(node_t *left, node_t *right, token_t op) {
         result += "\tmovl " + right_val + ", %eax\n";
         // perform operator and store in the stack
         result += getOperator(offset, op);
-    } else if ((left->type == VAR_NODE || left->type == NUM_NODE) && (right->type == BIN_OP_NODE)) {
+    } else if ((left->type == VAR_NODE || left->type == NUM_NODE) && (right->type == BIN_OP_NODE || right->type == ARRAY_INDEX_NODE)) {
         // std::cout << "a var/num and a bin_op" << std::endl;
         std::string left_val;
         if (left->type == NUM_NODE) {
@@ -244,7 +247,12 @@ std::string Compiler::binOpAsm(node_t *left, node_t *right, token_t op) {
             auto var = findVariable(left->token.value);
             left_val = "-" + std::to_string(var->stack_offset) + "(%rbp)\n";
         }
-        result += binOpAsm(right->children.at(0), right->children.at(1), right->token);
+
+        if (right->type == ARRAY_INDEX_NODE) {
+            result += arrayIndex(right);
+        } else {
+            result += binOpAsm(right->children.at(0), right->children.at(1), right->token);
+        }
         auto right_var = variables.back();
         variables.pop_back();
 
@@ -256,7 +264,7 @@ std::string Compiler::binOpAsm(node_t *left, node_t *right, token_t op) {
         result += "\tmovl -" + std::to_string(right_var.stack_offset) + "(%rbp), %eax\n";
         // perform operator and store in the stack
         result += getOperator(offset, op);
-    } else if ((right->type == VAR_NODE || right->type == NUM_NODE) && (left->type == BIN_OP_NODE)) {
+    } else if ((right->type == VAR_NODE || right->type == NUM_NODE) && (left->type == BIN_OP_NODE || left->type == ARRAY_INDEX_NODE)) {
         // std::cout << "a bin_op and a var/num" << std::endl;
         std::string right_val;
         if (right->type == NUM_NODE) {
@@ -265,7 +273,11 @@ std::string Compiler::binOpAsm(node_t *left, node_t *right, token_t op) {
             auto var = findVariable(right->token.value);
             right_val = "-" + std::to_string(var->stack_offset) + "(%rbp)\n";
         }
-        result += binOpAsm(left->children.at(0), left->children.at(1), left->token);
+        if (right->type == ARRAY_INDEX_NODE) {
+            result += arrayIndex(left);
+        } else {
+            result += binOpAsm(left->children.at(0), left->children.at(1), left->token);
+        }
         auto left_var = variables.back();
         variables.pop_back();
 
@@ -277,11 +289,19 @@ std::string Compiler::binOpAsm(node_t *left, node_t *right, token_t op) {
         result += "\tmovl " + right_val + ", %eax\n";
         // perform operator and store in the stack
         result += getOperator(offset, op);
-    } else if (right->type == BIN_OP_NODE && left->type == BIN_OP_NODE) {
+    } else if ((right->type == BIN_OP_NODE || right->type == ARRAY_INDEX_NODE) && (left->type == BIN_OP_NODE || left->type == ARRAY_INDEX_NODE)) {
         // std::cout << "two bin_ops" << std::endl;
-        result += binOpAsm(left->children.at(0), left->children.at(1), left->token);
+        if (right->type == ARRAY_INDEX_NODE) {
+            result += arrayIndex(left);
+        } else {
+            result += binOpAsm(left->children.at(0), left->children.at(1), left->token);
+        }
         auto left_var = variables.back();
-        result += binOpAsm(right->children.at(0), right->children.at(1), right->token);
+        if (right->type == ARRAY_INDEX_NODE) {
+            result += arrayIndex(right);
+        } else {
+            result += binOpAsm(right->children.at(0), right->children.at(1), right->token);
+        }
         auto right_var = variables.back();
         variables.pop_back();
         variables.pop_back();
@@ -297,13 +317,17 @@ std::string Compiler::binOpAsm(node_t *left, node_t *right, token_t op) {
     return result;
 }
 
-// Puts a variable to the `%eax`
+// Pushes a variable to the stack
 std::string Compiler::arrayIndex(node_t *node) {
     std::string res = "";
     auto var = *findVariable(node->children.at(0)->token.value);
+    int offset = variables.back().stack_offset + 4;
+    variables.push_back(variable_data("tmp" + std::to_string(Compiler::tmp++), 4, "int", "0", offset));
+    auto new_var = variables.back();
 
     if (node->children.at(1)->type == NUM_NODE) {
         res += "\tmovl -" + std::to_string(var.stack_offset + std::stoi(node->children.at(1)->token.value) * 4) + "(%rbp), %eax\n";
+        res += "\tmovl %eax, -" + std::to_string(new_var.stack_offset) + "(%rbp)\n";
     } else if (node->children.at(1)->type == VAR_NODE) {
         // some shit with lea
     }
