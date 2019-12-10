@@ -30,6 +30,8 @@ private:
     std::string getSub(int offset);
     std::string getEq(int offset);
 
+    std::string dumpFloat(float num);
+
     std::string getOperator(int offset, token_t op);
 
     std::string arrayIndex(node_t *node);

@@ -310,9 +310,17 @@ node_t *Parser::declaration() {
     }
 }
 
-// variable ASSIGNMENT_OP expression
+// (variable | arrayIndex) ASSIGNMENT_OP expression
 node_t *Parser::assignment() {
-    auto left = this->variable();
+    node_t *left;
+    this->eat(VAR);
+    if (this->current_token->type == LBRACKET) {
+        this->lexer_pos -= 2;
+        this->current_token = this->getNextToken();
+        left = arrayIndex();
+    } else {
+        left = this->variable();
+    }
     auto token = *(this->current_token);
     if (token.type == ASSIGN) {
         this->eat(token.type);

@@ -28,7 +28,7 @@ void Compiler::compileFunc(node_t *node, std::string output, std::string input) 
 }
 
 std::string Compiler::getMetaData(node_t *node, std::string path) {
-    return "\t.file\t\"" + path + "\"\n\t.text\n\t.globl\t" +
+    return "\t.file\t\"" + path + "\"\n\t.section .text\n\t.globl\t" +
         node->children.at(1)->token.value + "\n\t.type\t" +
         node->children.at(1)->token.value + ", @function";
 }
@@ -115,25 +115,34 @@ void Compiler::assignStack() {
 std::string Compiler::assignmentOperator(node_t *node) {
     /* std::cout << "assignmentOperator()" << std::endl; */
     std::string result = "";
-    auto var = *findVariable(node->children.at(0)->token.value);
+    int offset;
+    if (node->children.at(0)->type == VAR_NODE) {
+        offset = findVariable(node->children.at(0)->token.value)->stack_offset;
+    } else if (node->children.at(0)->type == ARRAY_INDEX_NODE) {
+        // TODO: array index
+        auto var = findVariable(node->children.at(0)->children.at(0)->token.value);
+        offset = var->stack_offset + 4 * std::stoi(node->children.at(0)->children.at(1)->token.value);
+    } else {
+        throw std::logic_error("You can assign only to vars and array items");
+    }
     auto right = node->children.at(1);
     if (right->type == NUM_NODE) {
-        result += "\tmovl $" + right->token.value + ", -" + std::to_string(var.stack_offset) + "(%rbp)\n";
+        result += "\tmovl $" + right->token.value + ", -" + std::to_string(offset) + "(%rbp)\n";
     } else if (right->type == VAR_NODE) {
         auto left_var = *findVariable(right->token.value);
         result += "\tmovl -" + std::to_string(left_var.stack_offset) + "(%rbp), %eax\n";
-        result += "\tmovl %eax, -" + std::to_string(var.stack_offset) + "(%rbp)\n";
+        result += "\tmovl %eax, -" + std::to_string(offset) + "(%rbp)\n";
     } else if (right->type == UN_OP_NODE) {
         result += unOpAsm(right, node->token);
     } else if (right->type == BIN_OP_NODE) {
         result += binOpAsm(right->children.at(0), right->children.at(1), right->token);
         result += "\tmovl -" + std::to_string(variables.back().stack_offset) + "(%rbp), %eax\n";
-        result += "\tmovl %eax, -" + std::to_string(var.stack_offset) + "(%rbp)\n";
+        result += "\tmovl %eax, -" + std::to_string(offset) + "(%rbp)\n";
         variables.pop_back();
     } else if (right->type == ARRAY_INDEX_NODE) {
         result += arrayIndex(right);
         result += "\tmovl -" + std::to_string(variables.back().stack_offset) + "(%rbp), %eax\n";
-        result += "\tmovl %eax, -" + std::to_string(var.stack_offset) + "(%rbp)\n";
+        result += "\tmovl %eax, -" + std::to_string(offset) + "(%rbp)\n";
         variables.pop_back();
     }
     return result;
@@ -353,4 +362,13 @@ std::string Compiler::getOperator(int offset, token_t op) {
         res = getEq(offset);
     }
     return res;
+}
+
+// Dumps .float `num` with section handling
+std::string Compiler::dumpFloat(float num) {
+    std::string result = "";
+    result += "\t.section .data\n";
+    result += "\t.float " + std::to_string(num);
+    result += "\t.section .text\n";
+    return result;
 }

@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
     Parser parser(lexemes);
     auto head = parser.parse();
 
-    /* Visiter::visualize(head, 0); */
+    Visiter::visualize(head, 0);
     Visiter visiter;
     visiter.visitNodes(head, nullptr);
     /* visiter.printVariables(); */
