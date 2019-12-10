@@ -11,7 +11,7 @@ class Compiler {
 private:
     std::vector<variable_data> variables;
 
-    // TODO: arrays, floats
+    // TODO: floats
     void assignStack();
     std::string processNode(node_t *node, node_t *parent);
     std::string getMetaData(node_t *node, std::string path);
@@ -28,6 +28,7 @@ private:
     std::string getMul(int offset);
     std::string getAdd(int offset);
     std::string getSub(int offset);
+    std::string getEq(int offset);
 
     std::string getOperator(int offset, token_t op);
 

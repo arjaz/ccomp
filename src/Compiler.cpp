@@ -70,7 +70,7 @@ std::string Compiler::returnOperator(node_t *node) {
     return "";
 }
 
-// Let's pretend that starting values are numbers
+// Let's pretend that the starting values are ints
 std::string Compiler::getDeclarations() {
     std::string result = "";
     for (auto &x : variables) {
@@ -123,16 +123,13 @@ std::string Compiler::assignmentOperator(node_t *node) {
         auto left_var = *findVariable(right->token.value);
         result += "\tmovl -" + std::to_string(left_var.stack_offset) + "(%rbp), %eax\n";
         result += "\tmovl %eax, -" + std::to_string(var.stack_offset) + "(%rbp)\n";
-        return result;
     } else if (right->type == UN_OP_NODE) {
         result += unOpAsm(right, node->token);
-        return result;
     } else if (right->type == BIN_OP_NODE) {
         result += binOpAsm(right->children.at(0), right->children.at(1), right->token);
         result += "\tmovl -" + std::to_string(variables.back().stack_offset) + "(%rbp), %eax\n";
         result += "\tmovl %eax, -" + std::to_string(var.stack_offset) + "(%rbp)\n";
         variables.pop_back();
-        return result;
     } else if (right->type == ARRAY_INDEX_NODE) {
         result += arrayIndex(right);
         result += "\tmovl -" + std::to_string(variables.back().stack_offset) + "(%rbp), %eax\n";
@@ -146,6 +143,7 @@ void Compiler::setVariables(std::vector<variable_data> variables) {
     this->variables = variables;
 }
 
+// Returns a pointer to the variable named `name` if it's present, otherwise `nullptr`
 variable_data *Compiler::findVariable(std::string name) {
     for (auto &x : variables) {
         if (x.name == name) {
@@ -155,7 +153,7 @@ variable_data *Compiler::findVariable(std::string name) {
     return nullptr;
 }
 
-// Multuplies a valure stored in the `%eax` by the `-offset(%rbp)` and then writes the result to the `-offset(%rbp)`
+// Multuplies a value stored in the `%eax` by the `-offset(%rbp)` and then writes the result to the `-offset(%rbp)`
 std::string Compiler::getMul(int offset) {
     std::string res;
     res = "\tmull -" + std::to_string(offset) + "(%rbp)\n";
@@ -171,6 +169,11 @@ std::string Compiler::getAdd(int offset) {
 // Subs a value stored in the `%eax` from the `-offset(%rbp)`
 std::string Compiler::getSub(int offset) {
     return "\tsubl %eax, -" + std::to_string(offset) + "(%rbp)\n";
+}
+
+// Eqs a value stored in the `%eax` from the `-offset(%rbp)`
+std::string Compiler::getEq(int offset) {
+    return "\tandl %eaxl -" + std::to_string(offset) + "(%rbp)\n";
 }
 
 // Performs unary operator `op` on `node` and pushes the result to the stack
@@ -345,8 +348,9 @@ std::string Compiler::getOperator(int offset, token_t op) {
     } else if (op.type == ASTERISK) {
         res = getMul(offset);
     } else if (op.type == AND) {
-        // TODO: change `getMul` to proper &&
         res = getMul(offset);
+    } else if (op.type == EQ) {
+        res = getEq(offset);
     }
     return res;
 }
