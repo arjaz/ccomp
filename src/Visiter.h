@@ -34,7 +34,6 @@ private:
     bool variablePresent(std::string name);
     bool isInteger(std::string value);
     bool isPositiveInteger(std::string value);
-    std::string typeOf(node_t *node);
     bool areCompatible(std::string type1, std::string type2);
     bool isPointer(std::string type);
     std::string biggerType(std::string type1, std::string type2);
@@ -49,7 +48,9 @@ public:
 
     void visitNodes(node_t *node, node_t *parent);
     void printVariables();
+    void setVariables(std::vector<variable_data> xs);
     std::vector<variable_data> getVariables();
+    std::string typeOf(node_t *node);
 };
 
 #endif /* VISITER_H */

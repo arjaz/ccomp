@@ -11,7 +11,8 @@ class Compiler {
 private:
     std::vector<variable_data> variables;
 
-    // TODO: floats
+    // TODO: float operators, arrays (they suck and don't work properly)
+
     void assignStack();
     std::string processNode(node_t *node, node_t *parent);
     std::string getMetaData(node_t *node, std::string path);
@@ -30,9 +31,13 @@ private:
     std::string getSub(int offset);
     std::string getEq(int offset);
 
-    std::string dumpFloat(float num);
+    std::string getFloatEq(int offset1, int offset2, bool isLeftFloat);
+
+    std::string dumpFloat(std::string num);
+    bool isInt(std::string value);
 
     std::string getOperator(int offset, token_t op);
+    std::string getFloatOperator(int offset1, int offset2, token_t op);
 
     std::string arrayIndex(node_t *node);
 
@@ -40,6 +45,8 @@ public:
     Compiler();
     ~Compiler();
     static int tmp;
+    static int mark;
+    static int float_offset;
 
     void compileFunc(node_t *node, std::string output, std::string input);
     void setVariables(std::vector<variable_data> variables);

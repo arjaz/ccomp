@@ -115,6 +115,7 @@ node_t *Parser::term() {
     while (
             this->current_token->type == ASTERISK ||
             this->current_token->type == DIV ||
+            this->current_token->type == EQ ||
             this->current_token->type == MOD
           ) {
         auto token = *(this->current_token);
@@ -146,7 +147,6 @@ node_t *Parser::expression() {
             this->current_token->type == BITAND ||
             this->current_token->type == BITOR ||
             this->current_token->type == BITXOR ||
-            this->current_token->type == EQ ||
             this->current_token->type == NEQ
           ) {
         auto token = *(this->current_token);
@@ -313,11 +313,12 @@ node_t *Parser::declaration() {
 // (variable | arrayIndex) ASSIGNMENT_OP expression
 node_t *Parser::assignment() {
     node_t *left;
-    this->eat(VAR);
-    if (this->current_token->type == LBRACKET) {
-        this->lexer_pos -= 2;
-        this->current_token = this->getNextToken();
-        left = arrayIndex();
+    // this->eat(VAR);
+    // if (this->current_token->type == LBRACKET) {
+    if (this->lexer.at(this->lexer_pos).type == LBRACKET) {
+        // this->lexer_pos -= 2;
+        // this->current_token = this->getNextToken();
+        left = this->arrayIndex();
     } else {
         left = this->variable();
     }
@@ -563,6 +564,7 @@ node_t *Parser::statementList() {
 
     auto node = this->statement();
     node_result->children.push_back(node);
+    std::cout << "node added: " << node_result->type << std::endl;
     while (
             this->current_token->type == LBRACE ||
             this->current_token->type == VAR ||
@@ -663,7 +665,8 @@ node_t *Parser::programStatementList() {
 node_t *Parser::program() {
     auto node = new node_t();
     node->type = PROGRAM_NODE;
-    node->children.push_back(this->statementList());
+    // node->children.push_back(this->statementList());
+    node->children.push_back(this->functionDeclaration());
     return node;
 }
 

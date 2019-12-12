@@ -31,14 +31,15 @@ int main(int argc, char **argv) {
     auto head = parser.parse();
 
     Visiter::visualize(head, 0);
+    // std::cout << head->type << " > " << head->children.size() << std::endl;
+    // std::cout << head->children.at(0)->type << " > " << head->children.at(0)->children.size() << std::endl;
     Visiter visiter;
     visiter.visitNodes(head, nullptr);
-    /* visiter.printVariables(); */
+    // visiter.printVariables();
 
-    visiter.visualize(head->children.at(0)->children.at(0), 0);
     Compiler compiler;
     compiler.setVariables(visiter.getVariables());
-    compiler.compileFunc(head->children.at(0)->children.at(0), argv[2], argv[1]);
+    compiler.compileFunc(head->children.at(0), argv[2], argv[1]);
 
     return 0;
 

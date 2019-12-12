@@ -313,3 +313,9 @@ std::vector<variable_data> Visiter::getVariables() {
     }
     return res;
 }
+
+void Visiter::setVariables(std::vector<variable_data> xs) {
+    for (auto x : xs) {
+        variables.push_back(std::make_unique<variable_data>(x));
+    }
+}
