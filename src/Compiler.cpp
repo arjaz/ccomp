@@ -503,8 +503,12 @@ std::string Compiler::getOperator(int offset, token_t op) {
         result = getMul(offset);
     } else if (op.type == AND) {
         result = getMul(offset);
+    } else if (op.type == OR) {
+        result = getAdd(offset);
     } else if (op.type == EQ) {
         result = getEq(offset);
+    } else if (op.type == NEQ) {
+        result = getMul(offset);
     }
     return result;
 }
